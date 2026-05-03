@@ -1,9 +1,13 @@
 # AI/Agent folders
 .agent/
 .agents/
+.aider-desk/
 .claude/
 .codex/
 .gemini/
+
+# Build cache
+.vite/
 
 # Python
 __pycache__/
