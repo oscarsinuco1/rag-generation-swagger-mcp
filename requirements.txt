@@ -1,4 +1,4 @@
 chromadb
 requests
-sentence-transformers
+fastembed
 mcp

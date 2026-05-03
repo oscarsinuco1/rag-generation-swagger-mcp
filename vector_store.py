@@ -5,21 +5,55 @@ import os
 if os.path.exists(r"C:\st"):
     sys.path.insert(0, r"C:\st")
 
+# Forzar ubicación del cache de fastembed
+os.environ.setdefault("FASTEMBED_CACHE_PATH", "/root/.cache/fastembed")
+
 import json
 import hashlib
 import chromadb
-from chromadb.utils import embedding_functions
+from fastembed import TextEmbedding
 
 # Modelo configurable via variable de entorno
 EMBEDDING_MODEL = os.environ.get(
     "EMBEDDING_MODEL", 
-    "paraphrase-multilingual-MiniLM-L12-v2"
+    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 )
 
-# Modelo multilingüe para mejor soporte de español
-embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name=EMBEDDING_MODEL
-)
+# Inicializar modelo fastembed (ONNX, mucho más ligero)
+_embedding_model = None
+
+def get_embedding_model():
+    """Lazy loading del modelo de embeddings."""
+    global _embedding_model
+    if _embedding_model is None:
+        _embedding_model = TextEmbedding(model_name=EMBEDDING_MODEL)
+    return _embedding_model
+
+
+class FastEmbedFunction:
+    """Wrapper de fastembed para ChromaDB."""
+    
+    def name(self):
+        """Nombre de la función de embeddings (requerido por ChromaDB)."""
+        return "fastembed"
+    
+    def __call__(self, input):
+        model = get_embedding_model()
+        embeddings = list(model.embed(input))
+        return embeddings
+    
+    def embed_query(self, input):
+        """Genera embedding para una query (requerido por ChromaDB para búsquedas)."""
+        model = get_embedding_model()
+        # input puede ser string o lista
+        if isinstance(input, str):
+            embeddings = list(model.embed([input]))
+            return embeddings[0]
+        else:
+            embeddings = list(model.embed(input))
+            return embeddings
+
+embedding_fn = FastEmbedFunction()
 
 
 def get_collection_name(identifier):
