@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "swagger-rag": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "SWAGGER_URLS=https://api.example.com/swagger.json",
+        "swagger-rag-mcp"
+      ]
+    }
+  }
+}

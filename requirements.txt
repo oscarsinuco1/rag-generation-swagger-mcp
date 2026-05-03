@@ -1,0 +1,4 @@
+chromadb
+requests
+sentence-transformers
+mcp

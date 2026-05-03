@@ -1,0 +1,35 @@
+# AI/Agent folders
+.agent/
+.agents/
+.claude/
+.codex/
+.gemini/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# ChromaDB
+chroma_db/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+.dockerignore
