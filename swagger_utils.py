@@ -34,6 +34,11 @@ def resolve_ref(swagger_json, ref):
     return result
 
 
+def is_swagger_v2(swagger_json):
+    """Detecta si es Swagger 2.0 o OpenAPI 3.x."""
+    return swagger_json.get("swagger", "").startswith("2")
+
+
 def extract_schema_example(swagger_json, schema):
     """Extrae ejemplo de un schema, resolviendo referencias."""
     if not schema:
@@ -149,41 +154,77 @@ def extract_responses(swagger_json, details):
     if not responses:
         return None
     
+    is_v2 = is_swagger_v2(swagger_json)
     result = {}
+    
     for status_code, response_info in responses.items():
         response_data = {
             "description": response_info.get("description", "")
         }
         
-        content = response_info.get("content", {})
-        for content_type in ["application/json", "text/json", "application/xml", "*/*"]:
-            if content_type in content:
-                media = content[content_type]
-                schema = media.get("schema", {})
-                
-                response_data["content_type"] = content_type
+        if is_v2:
+            # Swagger 2.0: schema directo en response
+            schema = response_info.get("schema", {})
+            if schema:
                 response_data["schema"] = extract_schema_details(swagger_json, schema)
-                
-                # Extraer ejemplo
-                if "example" in media:
-                    response_data["example"] = media["example"]
-                elif "examples" in media:
-                    examples = media["examples"]
-                    first_example = next(iter(examples.values()), {})
-                    if "value" in first_example:
-                        response_data["example"] = first_example["value"]
-                else:
-                    response_data["example"] = extract_schema_example(swagger_json, schema)
-                
-                break
+                response_data["example"] = extract_schema_example(swagger_json, schema)
+        else:
+            # OpenAPI 3.0: schema dentro de content
+            content = response_info.get("content", {})
+            for content_type in ["application/json", "text/json", "application/xml", "*/*"]:
+                if content_type in content:
+                    media = content[content_type]
+                    schema = media.get("schema", {})
+                    
+                    response_data["content_type"] = content_type
+                    response_data["schema"] = extract_schema_details(swagger_json, schema)
+                    
+                    # Extraer ejemplo
+                    if "example" in media:
+                        response_data["example"] = media["example"]
+                    elif "examples" in media:
+                        examples = media["examples"]
+                        first_example = next(iter(examples.values()), {})
+                        if "value" in first_example:
+                            response_data["example"] = first_example["value"]
+                    else:
+                        response_data["example"] = extract_schema_example(swagger_json, schema)
+                    
+                    break
         
         result[status_code] = response_data
     
     return result
 
 
+def extract_request_body_v2(swagger_json, details):
+    """Extrae body de parámetros en Swagger 2.0."""
+    parameters = details.get("parameters", [])
+    
+    for param in parameters:
+        if param.get("in") == "body":
+            schema = param.get("schema", {})
+            schema_details = extract_schema_details(swagger_json, schema)
+            example = extract_schema_example(swagger_json, schema)
+            
+            return {
+                "content_type": "application/json",
+                "required": param.get("required", False),
+                "description": param.get("description", ""),
+                "schema": schema_details,
+                "example": example
+            }
+    
+    return None
+
+
 def extract_request_body(swagger_json, details):
     """Extrae información del requestBody incluyendo ejemplos."""
+    # Swagger 2.0: body está en parameters con in: body
+    if is_swagger_v2(swagger_json):
+        return extract_request_body_v2(swagger_json, details)
+    
+    # OpenAPI 3.0: requestBody
     request_body = details.get("requestBody", {})
     if not request_body:
         return None
@@ -234,6 +275,7 @@ def parse_swagger(swagger_json):
     """Extrae los endpoints del Swagger en formato estructurado."""
     endpoints = []
     paths = swagger_json.get("paths", {})
+    is_v2 = is_swagger_v2(swagger_json)
     
     for path, methods in paths.items():
         for method, details in methods.items():
@@ -241,17 +283,33 @@ def parse_swagger(swagger_json):
                 # Extraer parámetros con detalles
                 params = []
                 for param in details.get("parameters", []):
+                    # En Swagger 2.0, ignorar body params (van en requestBody)
+                    if is_v2 and param.get("in") == "body":
+                        continue
+                    
+                    # Swagger 2.0: type y enum directos en param
+                    # OpenAPI 3.0: dentro de schema
+                    if is_v2:
+                        param_type = param.get("type", "string")
+                        param_enum = param.get("enum")
+                        param_format = param.get("format")
+                    else:
+                        param_schema = param.get("schema", {})
+                        param_type = param_schema.get("type", param.get("type", "string"))
+                        param_enum = param_schema.get("enum")
+                        param_format = param_schema.get("format")
+                    
                     param_info = {
                         "name": param.get("name", ""),
                         "in": param.get("in", ""),  # query, path, header, cookie
                         "required": param.get("required", False),
-                        "type": param.get("schema", {}).get("type", param.get("type", "string")),
+                        "type": param_type,
                         "description": param.get("description", "")
                     }
-                    if "enum" in param.get("schema", {}):
-                        param_info["enum"] = param["schema"]["enum"]
-                    if "format" in param.get("schema", {}):
-                        param_info["format"] = param["schema"]["format"]
+                    if param_enum:
+                        param_info["enum"] = param_enum
+                    if param_format:
+                        param_info["format"] = param_format
                     params.append(param_info)
                 
                 # Extraer requestBody
