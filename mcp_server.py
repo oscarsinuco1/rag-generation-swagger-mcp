@@ -17,6 +17,13 @@ from init_swaggers import init_swaggers
 # Inicializar servidor MCP
 server = Server("swagger-rag")
 
+
+def _indent(text, spaces):
+    """Indenta un texto multilínea."""
+    indent = " " * spaces
+    return "\n".join(indent + line for line in text.split("\n"))
+
+
 # Cargar colección al inicio
 COLLECTION_NAME = "swagger_rag"
 coleccion = None
@@ -101,18 +108,82 @@ async def call_tool(name: str, arguments: dict):
                 f"{i}. {endpoint['method']} {endpoint['path']}\n"
                 f"   Summary: {endpoint['summary']}\n"
                 f"   Description: {endpoint.get('description', 'N/A')}\n"
-                f"   Parameters: {', '.join(endpoint['parameters']) or 'none'}"
             )
+            
+            # Formatear parámetros con detalles
+            params = endpoint.get('parameters', [])
+            if params:
+                if isinstance(params[0], dict):
+                    # Nuevo formato con detalles
+                    param_lines = []
+                    for p in params:
+                        req = "*" if p.get("required") else ""
+                        param_line = f"      - {p['name']}{req} ({p.get('in', 'query')}): {p.get('type', 'string')}"
+                        if p.get("description"):
+                            param_line += f" - {p['description']}"
+                        if p.get("enum"):
+                            param_line += f" [enum: {', '.join(str(e) for e in p['enum'])}]"
+                        param_lines.append(param_line)
+                    result_text += f"   Parameters:\n" + "\n".join(param_lines) + "\n"
+                else:
+                    # Formato antiguo (solo nombres)
+                    result_text += f"   Parameters: {', '.join(params)}\n"
+            else:
+                result_text += "   Parameters: none\n"
             
             # Agregar requestBody si existe
             request_body = endpoint.get("requestBody")
             if request_body:
-                result_text += f"\n   Content-Type: {request_body.get('content_type', 'N/A')}"
+                result_text += f"   Request Body:\n"
+                result_text += f"      Content-Type: {request_body.get('content_type', 'N/A')}\n"
+                result_text += f"      Required: {request_body.get('required', False)}\n"
+                
+                schema = request_body.get("schema")
+                if schema:
+                    if schema.get("schema_name"):
+                        result_text += f"      Schema: {schema['schema_name']}\n"
+                    if schema.get("required"):
+                        result_text += f"      Required fields: {', '.join(schema['required'])}\n"
+                    if schema.get("properties"):
+                        result_text += f"      Properties:\n"
+                        for prop_name, prop_info in schema["properties"].items():
+                            prop_type = prop_info.get("type", "object")
+                            if prop_info.get("format"):
+                                prop_type += f"({prop_info['format']})"
+                            prop_desc = prop_info.get("description", "")
+                            result_text += f"         - {prop_name}: {prop_type}"
+                            if prop_desc:
+                                result_text += f" - {prop_desc}"
+                            result_text += "\n"
+                
                 if request_body.get("example"):
                     example_json = json.dumps(request_body["example"], indent=2, ensure_ascii=False)
-                    result_text += f"\n   Request Body Example:\n{example_json}"
+                    result_text += f"      Example:\n{_indent(example_json, 9)}\n"
             
-            result_text += f"\n   Source: {source}"
+            # Agregar responses
+            responses = endpoint.get("responses")
+            if responses:
+                result_text += f"   Responses:\n"
+                for status_code, response_info in responses.items():
+                    result_text += f"      {status_code}: {response_info.get('description', '')}\n"
+                    
+                    schema = response_info.get("schema")
+                    if schema:
+                        if schema.get("schema_name"):
+                            result_text += f"         Schema: {schema['schema_name']}\n"
+                        if schema.get("type"):
+                            result_text += f"         Type: {schema['type']}\n"
+                        if schema.get("properties"):
+                            result_text += f"         Properties:\n"
+                            for prop_name, prop_info in schema["properties"].items():
+                                prop_type = prop_info.get("type", "object")
+                                result_text += f"            - {prop_name}: {prop_type}\n"
+                    
+                    if response_info.get("example"):
+                        example_json = json.dumps(response_info["example"], indent=2, ensure_ascii=False)
+                        result_text += f"         Example:\n{_indent(example_json, 12)}\n"
+            
+            result_text += f"   Source: {source}"
             formatted.append(result_text)
         
         return [TextContent(type="text", text="\n\n".join(formatted))]
