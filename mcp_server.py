@@ -17,6 +17,9 @@ from init_swaggers import init_swaggers
 # Inicializar servidor MCP
 server = Server("swagger-rag")
 
+# Configuración servidor HTTP
+HTTP_ENABLED = os.environ.get("HTTP_ENABLED", "true").lower() == "true"
+HTTP_PORT = int(os.environ.get("HTTP_PORT", "8080"))
 
 def _indent(text, spaces):
     """Indenta un texto multilínea."""
@@ -217,6 +220,12 @@ async def main():
     """Inicia el servidor MCP."""
     # Inicializar Swaggers antes de aceptar conexiones
     initialize()
+    
+    # Iniciar servidor HTTP si está habilitado
+    if HTTP_ENABLED:
+        from http_server import start_http_server
+        start_http_server(port=HTTP_PORT)
+        print(f"🌐 Servidor HTTP iniciado en http://localhost:{HTTP_PORT}", file=sys.stderr)
     
     async with stdio_server() as (read_stream, write_stream):
         await server.run(read_stream, write_stream, server.create_initialization_options())

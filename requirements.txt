@@ -2,3 +2,5 @@ chromadb
 requests
 fastembed
 mcp
+fastapi
+uvicorn

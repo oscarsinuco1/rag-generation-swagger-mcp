@@ -46,15 +46,21 @@ COPY --from=builder /root/.cache/fastembed /root/.cache/fastembed
 COPY swagger_utils.py .
 COPY vector_store.py .
 COPY init_swaggers.py .
+COPY http_server.py .
 COPY mcp_server.py .
 
 # Variables de entorno
 ENV PYTHONUNBUFFERED=1
 ENV EMBEDDING_MODEL=${EMBEDDING_MODEL}
 
+# Exponer puerto HTTP para interfaz web
+EXPOSE 8080
+
 # SWAGGER_URLS y SWAGGER_FILE se configuran al ejecutar el contenedor
 # FORCE_REFRESH=true para forzar re-indexación de endpoints
-# Ejemplo: docker run -e SWAGGER_URLS="url1,url2" -e FORCE_REFRESH=true swagger-rag-mcp
+# HTTP_ENABLED=true/false para habilitar/deshabilitar servidor HTTP (default: true)
+# HTTP_PORT=8080 para cambiar el puerto del servidor HTTP
+# Ejemplo: docker run -p 8080:8080 -e SWAGGER_URLS="url1,url2" -e FORCE_REFRESH=true swagger-rag-mcp
 
 # El servidor MCP usa stdio
 CMD ["python", "mcp_server.py"]
