@@ -13,6 +13,7 @@ from swagger_utils import load_swagger_from_file, fetch_swagger, parse_swagger
 SWAGGER_URLS = os.environ.get("SWAGGER_URLS", "")
 SWAGGER_FILE = os.environ.get("SWAGGER_FILE", "")
 SWAGGER_URLS_FILE = os.environ.get("SWAGGER_URLS_FILE", "/app/urls.txt")
+FORCE_REFRESH = os.environ.get("FORCE_REFRESH", "false").lower() == "true"
 COLLECTION_NAME = "swagger_rag"
 
 def load_urls_from_file(filepath: str) -> list[str]:
@@ -26,6 +27,8 @@ def init_swaggers():
     """Inicializa los Swaggers al arrancar el contenedor."""
     print("=== INICIALIZANDO SWAGGERS ===", file=sys.stderr)
     print(f"Modelo: {EMBEDDING_MODEL}", file=sys.stderr)
+    if FORCE_REFRESH:
+        print("FORCE_REFRESH: activado - se reindexará todo", file=sys.stderr)
     
     all_endpoints = []
     urls = []
@@ -68,8 +71,8 @@ def init_swaggers():
     # Vectorizar
     coleccion = get_collection(collection_name=COLLECTION_NAME)
     
-    # Limpiar colección existente si hay nuevos datos
-    if coleccion.count() > 0:
+    # Limpiar colección existente si hay nuevos datos o FORCE_REFRESH está activo
+    if FORCE_REFRESH or coleccion.count() > 0:
         print("Limpiando colección existente...", file=sys.stderr)
         # Eliminar todos los documentos
         all_ids = coleccion.get()['ids']

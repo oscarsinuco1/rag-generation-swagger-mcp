@@ -53,7 +53,8 @@ ENV PYTHONUNBUFFERED=1
 ENV EMBEDDING_MODEL=${EMBEDDING_MODEL}
 
 # SWAGGER_URLS y SWAGGER_FILE se configuran al ejecutar el contenedor
-# Ejemplo: docker run -e SWAGGER_URLS="url1,url2" swagger-rag-mcp
+# FORCE_REFRESH=true para forzar re-indexación de endpoints
+# Ejemplo: docker run -e SWAGGER_URLS="url1,url2" -e FORCE_REFRESH=true swagger-rag-mcp
 
 # El servidor MCP usa stdio
 CMD ["python", "mcp_server.py"]

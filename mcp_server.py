@@ -27,12 +27,13 @@ def initialize():
     swagger_urls = os.environ.get("SWAGGER_URLS", "")
     swagger_file = os.environ.get("SWAGGER_FILE", "")
     swagger_urls_file = os.environ.get("SWAGGER_URLS_FILE", "/app/urls.txt")
+    force_refresh = os.environ.get("FORCE_REFRESH", "false").lower() == "true"
     
     # Verificar si hay archivo de URLs o variables de entorno
     has_urls_file = os.path.exists(swagger_urls_file)
     
-    if swagger_urls or swagger_file or has_urls_file:
-        # Hay configuración, vectorizar
+    if swagger_urls or swagger_file or has_urls_file or force_refresh:
+        # Hay configuración o se fuerza refresh, vectorizar
         coleccion = init_swaggers()
     else:
         # Usar colección existente
