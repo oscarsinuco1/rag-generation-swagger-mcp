@@ -193,15 +193,15 @@ async def call_tool(name: str, arguments: dict):
     
     elif name == "list_all_endpoints":
         # Obtener todos los documentos
-        all_docs = coleccion.get()
+        all_docs = coleccion.get(include=["metadatas"])
         
-        if not all_docs['documents']:
+        if not all_docs.get('metadatas'):
             return [TextContent(type="text", text="No hay endpoints indexados.")]
         
         # Agrupar por source
         by_source = {}
-        for doc in all_docs['documents']:
-            endpoint = json.loads(doc)
+        for m in all_docs['metadatas']:
+            endpoint = json.loads(m.get('full_json', '{}'))
             source = endpoint.get("source_url", "unknown")
             if source not in by_source:
                 by_source[source] = []

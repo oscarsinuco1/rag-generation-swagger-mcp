@@ -366,12 +366,12 @@ async def api_search(query: str = Query(..., description="Búsqueda semántica")
 async def api_list():
     """Lista todos los endpoints indexados."""
     coleccion = get_coleccion()
-    all_docs = coleccion.get()
+    all_docs = coleccion.get(include=["metadatas"])
     
-    if not all_docs['documents']:
+    if not all_docs.get('metadatas'):
         return {"results": [], "count": 0}
     
-    endpoints = [json.loads(doc) for doc in all_docs['documents']]
+    endpoints = [json.loads(m.get('full_json', '{}')) for m in all_docs['metadatas']]
     return {"results": endpoints, "count": len(endpoints)}
 
 
@@ -382,10 +382,10 @@ async def api_stats():
     count = coleccion.count()
     
     # Agrupar por source
-    all_docs = coleccion.get()
+    all_docs = coleccion.get(include=["metadatas"])
     sources = {}
-    for doc in all_docs.get('documents', []):
-        ep = json.loads(doc)
+    for m in all_docs.get('metadatas', []):
+        ep = json.loads(m.get('full_json', '{}'))
         source = ep.get('source_url', 'unknown')
         sources[source] = sources.get(source, 0) + 1
     
